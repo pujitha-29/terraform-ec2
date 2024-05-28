@@ -8,14 +8,25 @@ resource "aws_vpc" "my_vpc" {
   }
 }
 
-# Create a public subnet within the VPC
-resource "aws_subnet" "public_subnet" {
+# Create the first public subnet within the VPC
+resource "aws_subnet" "public_subnet_1" {
   vpc_id            = aws_vpc.my_vpc.id
   cidr_block        = "10.0.1.0/24"
   availability_zone = "us-east-1a" # Replace with your desired availability zone
 
   tags = {
-    Name = "public-subnet"
+    Name = "public-subnet-1"
+  }
+}
+
+# Create the second public subnet within the VPC
+resource "aws_subnet" "public_subnet_2" {
+  vpc_id            = aws_vpc.my_vpc.id
+  cidr_block        = "10.0.2.0/24"
+  availability_zone = "us-east-1b" # Replace with your desired availability zone
+
+  tags = {
+    Name = "public-subnet-2"
   }
 }
 
@@ -42,9 +53,15 @@ resource "aws_route_table" "public_rt" {
   }
 }
 
-# Associate the subnet with the route table
-resource "aws_route_table_association" "public_rt_assoc" {
-  subnet_id      = aws_subnet.public_subnet.id
+# Associate the first subnet with the route table
+resource "aws_route_table_association" "public_rt_assoc_1" {
+  subnet_id      = aws_subnet.public_subnet_1.id
+  route_table_id = aws_route_table.public_rt.id
+}
+
+# Associate the second subnet with the route table
+resource "aws_route_table_association" "public_rt_assoc_2" {
+  subnet_id      = aws_subnet.public_subnet_2.id
   route_table_id = aws_route_table.public_rt.id
 }
 
@@ -58,13 +75,12 @@ resource "aws_security_group" "instance_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-    ingress {
+  ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
 
   egress {
     from_port   = 0
@@ -78,11 +94,11 @@ resource "aws_security_group" "instance_sg" {
   }
 }
 
-# Create an EC2 instance within the public subnet
+# Create an EC2 instance within the first public subnet
 resource "aws_instance" "my_ec2_instance" {
   ami           = "ami-0d94353f7bad10668" # Replace with your desired AMI ID
   instance_type = "t2.micro"
-  subnet_id     = aws_subnet.public_subnet.id
+  subnet_id     = aws_subnet.public_subnet_1.id
   vpc_security_group_ids = [aws_security_group.instance_sg.id]
 
   tags = {
@@ -119,7 +135,7 @@ resource "aws_lb" "my_lb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.lb_sg.id]
-  subnets            = [aws_subnet.public_subnet.id]
+  subnets            = [aws_subnet.public_subnet_1.id, aws_subnet.public_subnet_2.id]
 
   tags = {
     Name = "my-lb"
